@@ -1,11 +1,7 @@
 import sh
-from os import path
 import click
 
-HOME = path.expanduser('~/')
-SCIVISUM = HOME + 'workspace/scivisum'
-CVS = HOME + 'cvs'
-TMP_MOUNT_POINT = '/tmp/repo'
+TMP_MOUNT_POINT = '/tmp/test'
 
 
 class RemoteMount(object):
@@ -17,31 +13,28 @@ class RemoteMount(object):
     def __enter__(self):
         return self
 
-    def __exit__(self):
-        if self.path:
-            sh.umount(TMP_MOUNT_POINT)
-
-    @property
-    def path(self):
-        if self.repo == 'scivisum':
-            return SCIVISUM
-        elif self.repo == 'cvs':
-            return CVS
+    def __exit__(self, *args):
+        sh.fusermount3('-u', TMP_MOUNT_POINT)
 
     def mount(self):
-        if self.path:
-            sshfs = sh.sshfs.bake('-o', 'allow_other')
-            sshfs('{}:{}'.format(self.server, self.path), '/tmp/repo')
+        sh.sshfs('{}:{}'.format(self.server, self.repo), TMP_MOUNT_POINT)
 
 
 @click.command()
-@click.argument('server', help='A box to connect to.')
-@click.option("-r", "--repo", default="scivisum", help="Which repo to mount.")
+@click.argument('server')
+@click.option("--repo", default="test", help="Which repo to mount.")
 def main(server, repo):
+    """
+    server:        A box to connect to.
+    """
     with RemoteMount(server, repo) as r:
         print "Mounting {}'s {} repo at {}".format(server, repo, TMP_MOUNT_POINT)
         r.mount()
         raw_input("Press any key to exit and unmount...")
 
-# TODO: Handle potential exceptions thrown by sshfs and umount
+
+if __name__ == '__main__':
+    main()
+
+# TODO: Handle potential exceptions thrown by sshfs and fusermount
 # TODO: Find a better way to wait/halt execution
