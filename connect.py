@@ -2,7 +2,6 @@ import sh
 import click
 
 TMP_PATH = '/tmp/remote'
-sh.mkdir('-p', TMP_PATH)
 
 
 def ensure_safe(f):
@@ -11,6 +10,8 @@ def ensure_safe(f):
             sh.fuser('-k', TMP_PATH)
             sh.fusermount3('-u', TMP_PATH)
         except sh.ErrorReturnCode_1:
+            pass
+        finally:
             f(*args)
     return inner
 
@@ -22,7 +23,8 @@ class RemoteMount(object):
         self.repo = repo
 
     def __enter__(self):
-        return self
+        sh.mkdir('-p', TMP_PATH)
+        self.mount()
 
     @ensure_safe
     def __exit__(self, *args):
@@ -30,6 +32,7 @@ class RemoteMount(object):
 
     @ensure_safe
     def mount(self):
+        print "Mounting {}'s {} repo at {}".format(self.server, self.repo, TMP_PATH)
         sh.sshfs('{}:{}'.format(self.server, self.repo), TMP_PATH)
 
 
@@ -40,9 +43,7 @@ def main(server, repo):
     """
     server:        A box to connect to.
     """
-    with RemoteMount(server, repo) as r:
-        print "Mounting {}'s {} repo at {}".format(server, repo, TMP_PATH)
-        r.mount()
+    with RemoteMount(server, repo):
         raw_input("Press any key to exit and attempt to unmount...")
 
 
