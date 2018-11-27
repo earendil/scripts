@@ -8,11 +8,14 @@ def ensure_safe(f):
     def inner(*args):
         try:
             sh.fuser('-k', TMP_PATH)
-            sh.fusermount3('-u', TMP_PATH)
-        except sh.ErrorReturnCode_1:
-            pass
-        finally:
-            f(*args)
+        except sh.ErrorReturnCode_1 as e:
+            print e
+        try:
+            sh.fusermount('-u', TMP_PATH)
+        except sh.ErrorReturnCode_1 as e:
+            print e
+
+        f(*args)
     return inner
 
 
